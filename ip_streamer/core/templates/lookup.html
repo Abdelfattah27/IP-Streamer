@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Lookup Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 30px;
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 2.5em;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 150px;
+            margin-bottom: 10px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .helper-text {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .response-container {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+
+        .response-item {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .response-item.error {
+            border-left-color: #e74c3c;
+            background-color: #fadbd8;
+        }
+
+        .response-item.timeout {
+            border-left-color: #f39c12;
+            background-color: #fef5e7;
+        }
+
+        .response-item.complete {
+            border-left-color: #27ae60;
+            background-color: #d5f4e6;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .ip-address {
+            font-weight: 600;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        .response-details {
+            margin-top: 8px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .response-value {
+            margin-left: 10px;
+            padding: 4px 8px;
+            background: white;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            display: inline-block;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-badge.pending {
+            background-color: #e8f4f8;
+            color: #0077be;
+        }
+
+        .status-badge.complete {
+            background-color: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .status-badge.error {
+            background-color: #fadbd8;
+            color: #e74c3c;
+        }
+
+        .stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-alert {
+            background-color: #fadbd8;
+            border: 1px solid #e74c3c;
+            color: #c0392b;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .success-alert {
+            background-color: #d5f4e6;
+            border: 1px solid #27ae60;
+            color: #1e8449;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .clear-button {
+            margin-top: 10px;
+            background: #95a5a6;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .clear-button:hover {
+            background: #7f8c8d;
+        }
+
+        .ip-list {
+            list-style: none;
+            margin-bottom: 15px;
+        }
+
+        .ip-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .ip-item-value {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .ip-item-remove {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+
+        .ip-item-remove:hover {
+            background: #c0392b;
+        }
+
+        .ip-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .ip-input-group input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            transition: border-color 0.3s;
+        }
+
+        .ip-input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .add-ip-btn {
+            padding: 10px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .add-ip-btn:hover {
+            background: #5568d3;
+        }
+
+        .add-ip-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .empty-list-msg {
+            color: #999;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
+        }
+
+        .rejected-ips-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .rejected-ip-item {
+            padding: 10px;
+            background: #fff3cd;
+            border-left: 3px solid #f39c12;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #333;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab-btn {
+            padding: 10px 16px;
+            background: none;
+            border: none;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .response-meta {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .response-meta-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .response-meta-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .response-label {
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>IP Lookup Tool</h1>
+
+    <div class="container">
+        <!-- Input Section -->
+        <div class="card">
+            <h2>📥 Submit IPs</h2>
+            
+            <div class="ip-input-group">
+                <input 
+                    type="text"
+                    id="singleIpInput"
+                    placeholder="Enter IP address (e.g., 8.8.8.8)"
+                    onkeypress="handleIpKeyPress(event)"
+                />
+                <button class="add-ip-btn" onclick="addIpToList()">+ Add IP</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('ips-tab')">
+                    IPs to Submit (<span id="ipCountBadge">0</span>)
+                </button>
+                <button class="tab-btn" onclick="switchTab('paste-tab')">
+                    Paste Multiple
+                </button>
+            </div>
+
+            <!-- IPs Tab -->
+            <div id="ips-tab" class="tab-content active">
+                <ul class="ip-list" id="ipList"></ul>
+                <p class="empty-list-msg" id="emptyListMsg">No IPs added yet. Add one using the input above or use "Paste Multiple".</p>
+            </div>
+
+            <!-- Paste Tab -->
+            <div id="paste-tab" class="tab-content">
+                <label for="pasteInput">Paste IPs (one per line):</label>
+                <textarea 
+                    id="pasteInput"
+                    placeholder="Paste multiple IPs here, one per line:&#10;8.8.8.8&#10;1.1.1.1&#10;208.67.222.222"
+                    style="min-height: 120px; margin-bottom: 10px;"
+                ></textarea>
+                <button onclick="pasteIps()" style="width: 100%;">Paste All IPs</button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-label">IPs to Submit</div>
+                    <div class="stat-value" id="totalIpsCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Rejected</div>
+                    <div class="stat-value" id="rejectedCount">0</div>
+                </div>
+            </div>
+
+            <div id="rejectionAlert"></div>
+
+            <button id="submitBtn" onclick="submitLookup()" style="width: 100%;">
+                🔍 Submit Lookup
+            </button>
+
+            <button class="clear-button" onclick="clearForm()" style="width: 100%;">
+                Clear All
+            </button>
+        </div>
+
+        <!-- Response Section -->
+        <div class="card">
+            <h2>📤 Results</h2>
+            
+            <div id="statusMessage"></div>
+            
+            <div class="response-container" id="responseContainer">
+                <p style="color: #999; text-align: center; padding-top: 50px;">
+                    Submit IPs to see results here...
+                </p>
+            </div>
+
+            <button class="clear-button" onclick="clearResults()" style="margin-top: auto;">
+                Clear Results
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let resultCount = 0;
+        let ipsList = [];
+
+        // IP List Management
+        function addIpToList() {
+            const input = document.getElementById('singleIpInput');
+            const ip = input.value.trim();
+
+            if (!ip) {
+                showStatus('Please enter an IP address', 'error');
+                return;
+            }
+
+            // Basic IP validation
+            if (!isValidIP(ip)) {
+                showStatus(`Invalid IP format: ${ip}`, 'error');
+                input.value = '';
+                input.focus();
+                return;
+            }
+
+            // Check for duplicates
+            if (ipsList.includes(ip)) {
+                showStatus(`IP already in list: ${ip}`, 'error');
+                input.value = '';
+                input.focus();
+                return;
+            }
+
+            ipsList.push(ip);
+            input.value = '';
+            input.focus();
+            updateIpListDisplay();
+        }
+
+        function removeIpFromList(ip) {
+            ipsList = ipsList.filter(item => item !== ip);
+            updateIpListDisplay();
+        }
+
+        function updateIpListDisplay() {
+            const listElement = document.getElementById('ipList');
+            const emptyMsg = document.getElementById('emptyListMsg');
+            const countBadge = document.getElementById('ipCountBadge');
+            const totalCount = document.getElementById('totalIpsCount');
+
+            countBadge.textContent = ipsList.length;
+            totalCount.textContent = ipsList.length;
+
+            listElement.innerHTML = '';
+
+            if (ipsList.length === 0) {
+                emptyMsg.style.display = 'block';
+                return;
+            }
+
+            emptyMsg.style.display = 'none';
+
+            ipsList.forEach(ip => {
+                const li = document.createElement('li');
+                li.className = 'ip-item';
+                li.innerHTML = `
+                    <span class="ip-item-value">${ip}</span>
+                    <button class="ip-item-remove" onclick="removeIpFromList('${ip}')">Remove</button>
+                `;
+                listElement.appendChild(li);
+            });
+        }
+
+        function pasteIps() {
+            const pasteInput = document.getElementById('pasteInput');
+            const text = pasteInput.value.trim();
+
+            if (!text) {
+                showStatus('Please paste some IPs', 'error');
+                return;
+            }
+
+            const ips = text
+                .split('\n')
+                .map(ip => ip.trim())
+                .filter(ip => ip.length > 0);
+
+            if (ips.length === 0) {
+                showStatus('No valid IPs found', 'error');
+                return;
+            }
+
+            let addedCount = 0;
+            let skippedCount = 0;
+
+            ips.forEach(ip => {
+                if (!isValidIP(ip)) {
+                    skippedCount++;
+                    return;
+                }
+                if (ipsList.includes(ip)) {
+                    skippedCount++;
+                    return;
+                }
+                ipsList.push(ip);
+                addedCount++;
+            });
+
+            pasteInput.value = '';
+            updateIpListDisplay();
+            switchTab('ips-tab');
+
+            const msg = `Added ${addedCount} IPs${skippedCount > 0 ? `, skipped ${skippedCount}` : ''}`;
+            showStatus(msg, 'success');
+        }
+
+        function handleIpKeyPress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addIpToList();
+            }
+        }
+
+        function isValidIP(ip) {
+            const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (!ipv4Regex.test(ip)) return false;
+
+            const parts = ip.split('.');
+            return parts.every(part => {
+                const num = parseInt(part, 10);
+                return num >= 0 && num <= 255;
+            });
+        }
+
+        function switchTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Submission
+        async function submitLookup() {
+            if (ipsList.length === 0) {
+                showStatus('Please add at least one IP address', 'error');
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading-spinner"></span>Submitting...';
+
+            try {
+                const response = await fetch('/api/lookup/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ips: ipsList })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    handleErrorResponse(data);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                    return;
+                }
+
+                // Success response
+                document.getElementById('rejectedCount').textContent = data.rejected_count || 0;
+
+                if (data.rejected_count > 0 && data.rejected_ips) {
+                    // Convert to array of objects with ip and reason if needed
+                    const rejectedList = data.rejected_ips.map(item => {
+                        if (typeof item === 'object' && item.ip) {
+                            return { ip: item.ip, reason: item.reason || 'unknown' };
+                        }
+                        return { ip: item, reason: 'unknown' };
+                    });
+                    displayRejectedIps(rejectedList);
+                } else {
+                    document.getElementById('rejectionAlert').innerHTML = '';
+                }
+
+                // Clear results and connect to SSE
+                clearResults();
+                resultCount = 0;
+                connectToSSE(data.sse_url, data.job_id);
+
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        }
+
+        function handleErrorResponse(data) {
+            let errorMessage = 'Failed to submit lookup';
+            let rejectedList = [];
+
+            // Handle different error response structures
+            if (data.detail) {
+                errorMessage = data.detail;
+            }
+
+            // Try to extract rejected IPs from various response structures
+            if (data.rejected_ips) {
+                if (Array.isArray(data.rejected_ips)) {
+                    rejectedList = data.rejected_ips.map(item => {
+                        if (typeof item === 'string') {
+                            return { ip: item, reason: 'unknown' };
+                        } else if (typeof item === 'object' && item.ip) {
+                            return { ip: item.ip, reason: item.reason || 'unknown' };
+                        }
+                        return null;
+                    }).filter(item => item !== null);
+                }
+            } else if (data.ips && Array.isArray(data.ips)) {
+                // Sometimes DRF puts validation errors under the field name
+                rejectedList = data.ips.map(item => {
+                    if (typeof item === 'string') {
+                        return { ip: item, reason: 'validation error' };
+                    }
+                    return null;
+                }).filter(item => item !== null);
+            }
+
+            showStatus(`Error: ${errorMessage}`, 'error');
+
+            if (rejectedList.length > 0) {
+                displayRejectedIps(rejectedList);
+            }
+        }
+
+        function getReasonIcon(reason) {
+            const reasonMap = {
+                'not_public_ip': '🔒',
+                'invalid_ip': '❌',
+                'validation_error': '⚠️',
+                'unknown': '❓'
+            };
+            return reasonMap[reason] || '❌';
+        }
+
+        function getReasonDisplay(reason) {
+            const reasonMap = {
+                'not_public_ip': 'Not a Public IP',
+                'invalid_ip': 'Invalid IP Format',
+                'validation_error': 'Validation Error',
+                'unknown': 'Unknown Reason'
+            };
+            return reasonMap[reason] || reason;
+        }
+
+        function displayRejectedIps(rejectedIps) {
+            const alert = document.getElementById('rejectionAlert');
+            const validRejected = rejectedIps.filter(item => item && item.ip);
+
+            if (validRejected.length === 0) {
+                alert.innerHTML = '';
+                return;
+            }
+
+            let html = `<div class="error-alert">
+                <strong>⚠️ Rejected IPs (${validRejected.length}):</strong>
+                <div class="rejected-ips-list" style="margin-top: 10px;">`;
+
+            validRejected.forEach(item => {
+                const icon = getReasonIcon(item.reason);
+                const reasonDisplay = getReasonDisplay(item.reason);
+                html += `<div class="rejected-ip-item">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-family: 'Courier New', monospace; font-weight: 600;">${item.ip}</span>
+                        <span style="font-size: 0.85em; color: #666;">${icon} ${reasonDisplay}</span>
+                    </div>
+                </div>`;
+            });
+
+            html += '</div></div>';
+            alert.innerHTML = html;
+        }
+
+        function connectToSSE(sseUrl, jobId) {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            showStatus(`🔄 Connecting to results stream...`, 'pending');
+            
+            eventSource = new EventSource(sseUrl);
+
+            eventSource.addEventListener('ready', function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    showStatus(`✅ Connected! Waiting for results...`, 'success');
+                } catch (e) {
+                    console.error('Error parsing ready event:', e);
+                }
+            });
+
+            eventSource.addEventListener('message', function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'result') {
+                        displayResult(data);
+                    } else if (data.type === 'complete') {
+                        displayComplete(data);
+                    }
+                } catch (e) {
+                    console.error('Error parsing SSE message:', e);
+                }
+            });
+
+            eventSource.addEventListener('timeout', function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    showStatus(`⏱️ Lookup timeout reached`, 'timeout');
+                } catch (e) {
+                    showStatus(`⏱️ Lookup timeout reached`, 'timeout');
+                }
+                if (eventSource) {
+                    eventSource.close();
+                }
+            });
+
+            eventSource.onerror = function(error) {
+
+                if (eventSource) {
+                    showStatus(`✅ All results received`, 'success');
+                } else {
+                    showStatus(`❌ Connection error`, 'error');
+                }
+                if (eventSource) {
+                    eventSource.close();
+                }
+            };
+        }
+
+        function displayResult(data) {
+            const container = document.getElementById('responseContainer');
+            
+            if (resultCount === 0) {
+                container.innerHTML = '';
+            }
+
+            resultCount++;
+
+            let itemHTML = '<div class="response-item';
+            let statusBadge = '';
+            let sourceInfo = '';
+
+            if (data.status === 'ok') {
+                itemHTML += ' complete';
+                statusBadge = '<span class="status-badge complete">✓ OK</span>';
+                sourceInfo = `<span style="font-size: 0.85em; color: #999; margin-left: 10px;">(${data.source || 'unknown'})</span>`;
+            } else if (data.status === 'error') {
+                itemHTML += ' error';
+                statusBadge = '<span class="status-badge error">✗ Error</span>';
+            } else {
+                statusBadge = '<span class="status-badge pending">⟳ Processing</span>';
+            }
+
+            itemHTML += '">';
+            itemHTML += `<div><span class="ip-address">${data.ip || 'N/A'}</span>${statusBadge}${sourceInfo}</div>`;
+            itemHTML += '<div class="response-details">';
+
+            // Extract data from the nested data object
+            const ipData = data.data || {};
+
+            // Display relevant fields from the response
+            if (ipData.asn) {
+                itemHTML += `<div>🔢 ASN: <span class="response-value">${ipData.asn}</span></div>`;
+            }
+            if (ipData.as_name) {
+                itemHTML += `<div>🏢 Organization: <span class="response-value">${ipData.as_name}</span></div>`;
+            }
+            if (ipData.as_domain) {
+                itemHTML += `<div>🌐 Domain: <span class="response-value">${ipData.as_domain}</span></div>`;
+            }
+            if (ipData.country) {
+                const countryInfo = ipData.country_code ? ` (${ipData.country_code})` : '';
+                itemHTML += `<div>🌍 Country: <span class="response-value">${ipData.country}${countryInfo}</span></div>`;
+            }
+            if (ipData.continent) {
+                const continentInfo = ipData.continent_code ? ` (${ipData.continent_code})` : '';
+                itemHTML += `<div>🗺️ Continent: <span class="response-value">${ipData.continent}${continentInfo}</span></div>`;
+            }
+
+            itemHTML += '</div></div>';
+
+            container.innerHTML += itemHTML;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function displayComplete(data) {
+            const container = document.getElementById('responseContainer');
+            
+            let itemHTML = '<div class="response-item complete" style="background: #d5f4e6; border-left-color: #27ae60;">';
+            itemHTML += '<div style="font-weight: 600; color: #27ae60; margin-bottom: 8px;">✓ Lookup Complete</div>';
+            itemHTML += '<div class="response-details">';
+            itemHTML += `<div>✅ Completed: <span class="response-value">${data.completed || 0}/${data.total || 0}</span></div>`;
+            
+            if (data.sent_at) {
+                const sentTime = new Date(data.sent_at).toLocaleTimeString();
+                itemHTML += `<div>⏰ Completed at: <span class="response-value">${sentTime}</span></div>`;
+            }
+            
+            itemHTML += '</div></div>';
+
+            container.innerHTML += itemHTML;
+            container.scrollTop = container.scrollHeight;
+            
+            showStatus(`✅ All ${data.total} IPs processed successfully!`, 'success');
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="${type}-alert">${message}</div>`;
+        }
+
+        function clearForm() {
+            ipsList = [];
+            document.getElementById('singleIpInput').value = '';
+            document.getElementById('pasteInput').value = '';
+            document.getElementById('rejectionAlert').innerHTML = '';
+            document.getElementById('rejectedCount').textContent = '0';
+            updateIpListDisplay();
+        }
+
+        function clearResults() {
+            document.getElementById('responseContainer').innerHTML = 
+                '<p style="color: #999; text-align: center; padding-top: 50px;">Waiting for results...</p>';
+            document.getElementById('statusMessage').innerHTML = '';
+        }
+
+        // Clean up when page unloads
+        window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+
+        // Initialize
+        updateIpListDisplay();
+    </script>
+</body>
+</html>

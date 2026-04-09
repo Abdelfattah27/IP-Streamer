@@ -1,0 +1,66 @@
+
+services:
+  # ------------------------------
+  # Django Application (API Server)
+  # ------------------------------
+  web:
+    build: ./ip_streamer
+    container_name: ip_streamer_web
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ip_streamer:/app 
+      - ./ip_streamer/staticfiles:/app/staticfiles
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis       
+    command: gunicorn --bind 0.0.0.0:8000 --workers 4 --worker-class uvicorn.workers.UvicornWorker --keep-alive 15 --timeout 0 ip_streamer.asgi:application
+
+  # ------------------------------
+  # PostgreSQL Database
+  # ------------------------------
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # ------------------------------
+  # Redis 
+  # ------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+
+  # ------------------------------
+  # Celery Worker
+  # ------------------------------
+  celery:
+    build: ./ip_streamer
+    container_name: celery_worker
+    command: celery -A ip_streamer worker -l info
+    working_dir: /app/ip_streamer
+    depends_on:
+      - redis
+      - db
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+
+# ------------------------------
+# Named Volumes
+# ------------------------------
+volumes:
+  postgres_data:
